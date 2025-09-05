@@ -1,4 +1,7 @@
 fastapi
-uvicorn[standard]
+uvicorn
+pydantic
+sqlalchemy
+asyncpg
+alembic   # DB migration tool
 python-dotenv
-pymongodb
