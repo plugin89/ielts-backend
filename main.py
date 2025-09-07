@@ -4,7 +4,7 @@ from src.routes import users
 #from src.core.db import engine
 
 app = FastAPI()
-app.include_router(users.router)
+app.include_router(users.users)
 
 # @app.on_event("startup")
 # async def startup():
