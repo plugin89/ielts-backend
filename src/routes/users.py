@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from src.core.db import db
+#from src.core.db import db
 from src.schemas.user import User
 
 router = APIRouter(prefix="/users", tags=["users"])
