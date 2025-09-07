@@ -2,9 +2,9 @@ from fastapi import APIRouter
 #from src.core.db import db
 from src.schemas.user import User
 
-router = APIRouter(prefix="/users", tags=["users"])
+users = APIRouter(prefix="/users", tags=["users"])
 
-@router.post("/", response_model=User)
+@users.post("/", response_model=User)
 async def create_user(user: User):
     # create user
     user_dict = user.dict(exclude={"id"})
@@ -12,7 +12,7 @@ async def create_user(user: User):
     user.id = str(result.inserted_id)
     return user
 
-@router.get("/{email}", response_model=User | None)
+@users.get("/{email}", response_model=User | None)
 async def get_user(email: str):
     # get user
     user = await db["users"].find_one({"email": email})
