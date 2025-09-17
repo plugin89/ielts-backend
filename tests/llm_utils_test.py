@@ -8,7 +8,7 @@ import asyncio
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "src", "core"))
 from utils import call_llm
 
-# Testing cachea
+# Testing cache
 default_response = {"text": "default"}
 
 async def test_success():

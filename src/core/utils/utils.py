@@ -170,9 +170,10 @@ async def check_cache(model: str, prompt: str, default_response: Dict,
                     {"message": {"role": "assistant", "content": default_response.get("text", "[FALLBACK]")}}
                 ],
                 "_meta": {
-                    "fallback": True,
-                    "error": neg.get("error"),
-                    "attempts": 0,
+                    "is_fallback": True,
+                    "is_default_response": False,
+                    "is_error": neg.get("error"),
+#                    "attempts": 0,
                     "cached_at": neg.get("ts"),
                     "retry_at": neg.get("ts") + negative_ttl if neg.get("ts") else None,
                 },
@@ -182,12 +183,13 @@ async def check_cache(model: str, prompt: str, default_response: Dict,
     return None
 
 
+
 async def call_llm(
     prompt: str,
     default_response: Dict,
     api_key: str = OPENROUTER_API_KEY,
     model: str = DEFAULT_MODEL,
-    max_attempt: int = DEFAULT_MAX_ATTEMPT,
+#    max_attempt: int = DEFAULT_MAX_ATTEMPT,
     timeout: int = DEFAULT_TIMEOUT,
     success_ttl: int = 86400,
     negative_ttl: int = 30,
@@ -211,43 +213,45 @@ async def call_llm(
     last_err, last_status, last_text = None, None, None
 
     async with httpx.AsyncClient(timeout=timeout) as client:
-        for i in range(1, max_attempt + 1):
-            try:
-                resp = await client.post(url, headers=headers, json=payload)
+#        for i in range(1, max_attempt + 1):
+        try:
+            resp = await client.post(url, headers=headers, json=payload)
 
-                if resp.status_code in (429,) or (500 <= resp.status_code < 600):
-                    if i < max_attempt:
-                        sleep_s = (2 ** (i - 1)) + random.uniform(0, 0.5)
-                        await asyncio.sleep(sleep_s)
-                        continue
-                    resp.raise_for_status()
-
+            if resp.status_code in (429,) or (500 <= resp.status_code < 600):
+                # if i < max_attempt:
+                #     sleep_s = (2 ** (i - 1)) + random.uniform(0, 0.5)
+                #     await asyncio.sleep(sleep_s)
+                #     continue
                 resp.raise_for_status()
-                raw = resp.json()
-                wrapped = {
-                    "choices": raw.get("choices", []),
-                    "_meta": {"fallback": False, "error": None, "attempts": i, "cached_at": _now()},
-                }
-                save_success_cache(model, prompt, wrapped)
-                return wrapped
 
-            except (httpx.TimeoutException, httpx.RequestError) as e:
-                last_err = e
-                if i < max_attempt:
-                    await asyncio.sleep((2 ** (i - 1)) + random.uniform(0, 0.5))
-                    continue
-            except httpx.HTTPStatusError as e:
-                last_err = e
-                last_status = e.response.status_code if e.response else None
-                try:
-                    last_text = e.response.text if e.response else None
-                except Exception:
-                    last_text = None
-                if last_status and last_status != 429 and not (500 <= last_status < 600):
-                    break
-                if i < max_attempt:
-                    await asyncio.sleep((2 ** (i - 1)) + random.uniform(0, 0.5))
-                    continue
+            resp.raise_for_status()
+            raw = resp.json()
+            wrapped = {
+                "choices": raw.get("choices", []),
+                "_meta": {"is_fallback": False, "is_default_response": False, "error": None, 
+                          #"attempts": i, 
+                          "cached_at": _now()},
+            }
+            save_success_cache(model, prompt, wrapped)
+            return wrapped
+
+        except (httpx.TimeoutException, httpx.RequestError) as e:
+            last_err = e
+            # if i < max_attempt:
+            #     await asyncio.sleep((2 ** (i - 1)) + random.uniform(0, 0.5))
+            #     continue
+        except httpx.HTTPStatusError as e:
+            last_err = e
+            last_status = e.response.status_code if e.response else None
+            try:
+                last_text = e.response.text if e.response else None
+            except Exception:
+                last_text = None
+            if last_status and last_status != 429 and not (500 <= last_status < 600):
+                break
+            # if i < max_attempt:
+            #     await asyncio.sleep((2 ** (i - 1)) + random.uniform(0, 0.5))
+            #     continue
 
     # Step 3. All attempts failed → save negative cache + return fallback
     neg_info = {"ts": _now(), "error": str(last_err) or f"status={last_status}, body={last_text}"}
@@ -257,9 +261,10 @@ async def call_llm(
             {"message": {"role": "assistant", "content": default_response.get("text", "[FALLBACK]")}}
         ],
         "_meta": {
-            "fallback": True,
-            "error": neg_info["error"],
-            "attempts": max_attempt,
+            "is_fallback": True,
+            "is_default_response": True,
+            "is_error": neg_info["error"],
+#            "attempts": max_attempt,
             "cached_at": neg_info["ts"],
             "retry_at": neg_info["ts"] + negative_ttl,
         },
