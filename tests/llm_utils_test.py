@@ -1,4 +1,4 @@
-from src.core.utils import *
+from core.utils.utils import *
 import asyncio
 from pydantic import BaseModel
 from typing import List, get_origin, Dict, Optional,Tuple
@@ -7,6 +7,7 @@ import asyncio
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "src", "core"))
 from utils import call_llm
+from schemas.write import AIReview
 
 # Testing cache
 default_response = {"text": "default"}
