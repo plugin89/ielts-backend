@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends
-from src.core.db import db
+# from src.core.db import db
 from src.schemas.user import User
 from src.middleware.auth import get_current_user
 
@@ -21,7 +21,7 @@ async def get_user(email: str):
         return User(id=str(user["_id"]), email=user["email"], name=user["name"])
     return None
 
-@router.get("/me/profile", response_model=dict)
+@users.get("/me/profile", response_model=dict)
 async def get_my_profile(current_user: dict = Depends(get_current_user)):
     """
     인증된 사용자의 프로필 정보를 반환하는 보호된 엔드포인트
@@ -34,7 +34,7 @@ async def get_my_profile(current_user: dict = Depends(get_current_user)):
         "message": "Successfully authenticated with Firebase!"
     }
 
-@router.put("/me/profile")
+@users.put("/me/profile")
 async def update_my_profile(
     user_data: dict,
     current_user: dict = Depends(get_current_user)
