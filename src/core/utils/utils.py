@@ -21,10 +21,10 @@ OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 
 
 # ----- helper functions
-def schema_str(model: type[BaseModel], indent: int = 0) -> str:
+def schema_str(class_model: type[BaseModel], indent: int = 0) -> str:
     # Given a class model, return JSON str - to use it for llm calls
     result = "{\n"
-    for name, field in model.__annotations__.items():
+    for name, field in class_model.__annotations__.items():
         origin = get_origin(field)
         if origin is list:
             result += " " * (indent + 2) + f'"{name}": [str],\n'
@@ -37,10 +37,10 @@ def schema_str(model: type[BaseModel], indent: int = 0) -> str:
     return result
 
 
-def field_names(model: type[BaseModel], prefix: str = "") -> List[str]:
+def field_names(class_model: type[BaseModel], prefix: str = "") -> List[str]:
     # Given a class model, make a list of field names as dotted keys.
     names = []
-    for name, field in model.__annotations__.items():
+    for name, field in class_model.__annotations__.items():
         origin = get_origin(field)
         if origin is list:
             names.append(prefix + name)
@@ -52,17 +52,19 @@ def field_names(model: type[BaseModel], prefix: str = "") -> List[str]:
     return names
 
 
-def has_field(llm_response: dict, dotted_key: str) -> bool:
 
-    llm_response_text = llm_response["choices"][0]["message"]["content"]
-    # check if a JSON data has all fields given as a dotted key
+def has_field(llm_response_json: dict, dotted_key: str) -> bool:
+    # check if a JSON data has all fields given as a dotted key (extracted from the schema)
     keys = dotted_key.split(".")
-    current = llm_response_text
+    current = llm_response_json
     for k in keys:
         if not isinstance(current, dict) or k not in current:
             return False
         current = current[k]
     return True
+
+
+#llm_response_text = llm_response["choices"][0]["message"]["content"]
 
 
 # ---- process/validate llm repsonses
@@ -90,14 +92,7 @@ def extract_json(llm_response:str)->Dict|None:
     return results
 
 
-# quick test (Case 1-4)
-# text1 = 'Some text' #no json
-# text2 = 'Some text before {"name": "Alice", "age": 25, "hobby":{"first":1, "second":2}}' # 1 json
-# text3 = 'Some text before {"name": "Alice", "age": 25, "hobby":{"' # incomplete json
-# text3 = 'Some text before {"name": "Alice", "age": 25, "hobby":{"first":1, "second":2}} and {"hi":1}' #2 json
-# result = extract_json(text1)
-# print(result) 
-#     
+# TODO: check the field types
 
 
 # ------ Cache
@@ -247,8 +242,8 @@ async def call_llm(
                 last_text = e.response.text if e.response else None
             except Exception:
                 last_text = None
-            if last_status and last_status != 429 and not (500 <= last_status < 600):
-                break
+            # if last_status and last_status != 429 and not (500 <= last_status < 600):
+            #     break
             # if i < max_attempt:
             #     await asyncio.sleep((2 ** (i - 1)) + random.uniform(0, 0.5))
             #     continue

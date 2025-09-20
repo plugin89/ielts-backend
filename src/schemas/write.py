@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from typing import List
 
 # Note: pydantic converts json_data into a class obj automatically

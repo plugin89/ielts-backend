@@ -1,12 +1,14 @@
-from core.utils.utils import *
+
 import asyncio
 from pydantic import BaseModel
 from typing import List, get_origin, Dict, Optional,Tuple
 import os, sys
 import asyncio
 
-sys.path.append(os.path.join(os.path.dirname(__file__), "..", "src", "core"))
-from utils import call_llm
+sys.path.append(os.path.join(os.path.dirname(__file__), "..", "src"))
+
+from core.utils.utils import *
+#from core.utils import call_llm
 from schemas.write import AIReview
 
 # Testing cache
