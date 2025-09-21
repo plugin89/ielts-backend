@@ -5,7 +5,7 @@ import os, sys
 import asyncio
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "src"))
-from core.utils.utils import schema_str, field_names, has_field, extract_json
+from core.utils.utils import schema_str, field_names, has_all_fields, extract_json, check_type_List, check_type
 from schemas.write import AIReview
 
 
@@ -38,7 +38,12 @@ json_example1 = {
     "improvements": ["imp 1"],
     "suggestions": ["suggestion1", "suggestion 2"]
 }
-print(has_field(json_example1, aireview_fieldnames))
+print("* When the json has ALL fields in the list")
+print(has_all_fields(json_example1, aireview_fieldnames))
+print("* When the json has ALL fields in the list + extra")
+json_example1["extra"] = "extra"
+print(has_all_fields(json_example1, aireview_fieldnames))
+
 json_example2 = {
     "overallScore":1,
     "scores": {
@@ -51,7 +56,19 @@ json_example2 = {
     "improvements": ["imp 1"]
 #    "suggestions": ["suggestion1", "suggestion 2"] # missing field
 }
-print(has_field(json_example2, aireview_fieldnames))
+print("* When the json doesn't have all fields in the list")
+print(has_all_fields(json_example2, aireview_fieldnames))
+
+print("* empty json")
+print(has_all_fields({}, aireview_fieldnames))
+
+print("* empty list json")
+print(has_all_fields(json_example2, []))
+
+
+print("* both input empty")
+print(has_all_fields({}, []))
+#
 
 
 
@@ -72,3 +89,17 @@ print(extract_json(text3))
 text4 = 'Some text before {"name": "Alice", "age": 25, "hobby":{"first":1, "second":2}} and {"hi":1}' #2 json
 print(extract_json(text4)) 
     
+
+print(type([1,2,3]) ==list)
+print(type([1,2,3]) ==List[int])
+
+print(type([1,2,3]))
+
+
+# ---- Example ----
+print("")
+print("*** Check type with List")
+print(check_type_List(["a", "b", "c"], "List[str]"))   # ✅ True
+print(check_type_List([1, 2, 3], "List[int]"))         # ✅ True
+print(check_type_List([1, "b", 3], "List[int]"))       # ❌ False
+print(check_type_List("hello", "str"))                 # ✅ True

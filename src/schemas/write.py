@@ -1,16 +1,17 @@
 from pydantic import BaseModel, field_validator
-from typing import List
+from typing import List, Literal
 
 # Note: pydantic converts json_data into a class obj automatically
 # ex. writing_input = WritingInput(**json_data)
 
 # ----- input data class (from frontend)
 class WritingInput(BaseModel):
-    content: str
+    user_writing: str
     questionId: str
+    topic: str
     wordCount: int
     timespent: int
-    questionType: str 
+    questionType: Literal["Task1", "Task2"] 
     wordlimit: int = -1
     timelimit: int = -1 
 
