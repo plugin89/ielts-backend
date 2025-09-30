@@ -16,9 +16,9 @@ from typing import List, get_origin, Dict, Optional,Tuple
 import os, sys
 import asyncio
 
-sys.path.append(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 from core.utils.utils import call_llm, call_llm_without_cache, has_all_fields
-from schemas.write import WritingInput
+from schemas.write import WritingInput, AIReview
 
 
 load_dotenv() 
@@ -28,6 +28,10 @@ load_dotenv()
 REVIEW_SCORE_ITEMS = ["taskResponse", "coherenceCohesion", "lexicalResource", "grammaticalAccuracy"]
 REVIEW_FEEDBACK_ITEMS = ["strengths", "improvements", "suggestions"]
 
+DEFAULT_REVIEW = {
+    "chain_of_thought": "Failed",
+    "feedback": ["No feedback."]
+}
 
 # TODO: The item description pipeline.
 REVIEW_ITEM_JSON = {
@@ -55,15 +59,9 @@ REVIEW_ITEM_JSON = {
             "score_standards": "## Grammatical Range & Accuracy \n\n - **Band 9**: Wide range of sentence structures.\n\tAccurate, flexible use; errors are extremely rare.  \n\n - **Band 8**: Wide range of structures used accurately.\n\tMost sentences error-free; occasional slips.  \n\n - **Band 7**: Variety of complex structures with good control.\n\tFrequent error-free sentences, but some errors persist.  \n\n - **Band 6**: Mix of simple and complex sentences.\n\tErrors occur but rarely impede communication.  \n\n - **Band 5**: Limited range of structures.\n\tComplex sentences attempted but often faulty; frequent errors.  \n\n - **Band 4**: Very limited sentence forms.\n\tFrequent grammatical errors may impede meaning.  \n\n - **Band 3**: Errors predominate in grammar and punctuation.\n\tMeaning is often unclear.  \n\n - **Band 2**: Almost no control of grammar.\n\tOnly a few words or memorised patterns correct.  \n\n - **Band 1**: No evidence of sentence forms.\n\tOnly isolated words.  \n\n - **Band 0**: Did not attempt the task."
         }
     },
-    "strengths": {
-        "Identify and list the strengths of the writing."
-    },
-    "improvements": {
-        "Identify and list the areas for improvement in the writing."
-    },
-    "suggestions": {
-        "Provide actionable suggestions for improving the writing."
-    }
+    "strengths": "Identify and list the strengths of the writing.",
+    "improvements": "Identify and list the areas for improvement in the writing.",
+    "suggestions": "Provide actionable suggestions for improving the writing."
 }
 
 
@@ -71,7 +69,10 @@ REVIEW_ITEM_JSON = {
 # Types of review: Score, Feedback
 # They have different prompt and json structure
 
-async def get_one_writing_score_item(user_writing_input: WritingInput, review_item_score: str, default_response) -> dict:
+async def get_one_writing_score_item(
+        user_writing_input: WritingInput, 
+        review_item_score: str, 
+        default_response) -> dict:
     # TODO: max_attempt - currently just one time attempt.
     if review_item_score in REVIEW_SCORE_ITEMS:
         # When the review item is a score item. 
@@ -122,7 +123,11 @@ Do not include anything else.
 
 
 
-async def get_one_writing_feedback(user_writing_input, review_item_feedback):
+async def get_one_writing_feedback(
+        user_writing_input, 
+        review_item_feedback, 
+        ai_score_results, 
+        default_review = DEFAULT_REVIEW):
     # TODO: This writing feedback function is depending on the review scores we get from the previous step.
     # Will need to decide the right input/output
     if review_item_feedback  in REVIEW_FEEDBACK_ITEMS:
@@ -132,18 +137,14 @@ You are an IELTS Writing Evaluation Expert. Your role is to give users feedback 
 
 # Instructions
 1. First, identify whether the essay is **Task 1** or **Task 2**.  
-2. Based on the  
-3. For each criterion, provide:  
-   - **Band Score (0–9)**: A realistic score according to IELTS standards.  
+2. Based on the score results and the essay provided below, give detailed feedback about the user's {review_item_feedback}.
 
 ---
 
 # Evaluation Details
 - **Task Identification**: {user_writing_input.questionType}
 - **Review Item**: {review_item_feedback}
-- **Review Item Description**: {REVIEW_ITEM_JSON[review_item_feedback]["scoring_criteria"]["description"]}
-- **Scoring Standards**:
-{REVIEW_ITEM_JSON[review_item_feedback]["scoring_criteria"]["scoring_standards"]}
+- **Review Item Description**: {REVIEW_ITEM_JSON[review_item_feedback]}
 
 ---
 
@@ -152,27 +153,70 @@ You are an IELTS Writing Evaluation Expert. Your role is to give users feedback 
 - **Essay**:
 {user_writing_input.user_writing}
 
+# Score Results
+- **Score evaluation:
+{ai_score_results}
+
 ---
 
 # Output Format
 - Output your evaluation results in json format as below.
 {{
     "chain_of_thought": str,
-    "value": float
+    "feedback": [str] # List of 2-3 specific feedback points for the review item.
 }}
 Do not include anything else.
 """
+        llm_response = await call_llm_without_cache(review_prompt, default_review)
+        if has_all_fields(llm_response, ["chain_of_thought", "feedback"]):
+            return llm_response
+        else:
+            default_review        
+    else:
+        return default_review
 
 
 
-async def get_overall_score():
-    # TODO: Need to be written
-    return None
+
+def get_overall_score(
+        ai_score_results: Optional[Dict[str, Dict[str, object]]] = None,
+        fallback: Optional[float] = None,
+) -> Optional[float]:
+    def _normalise(value: Optional[float]) -> Optional[float]:
+        if value is None:
+            return None
+        try:
+            numeric = float(value)
+        except (TypeError, ValueError):
+            return None
+        numeric = max(0.0, min(numeric, 9.0))
+        return round(numeric * 2) / 2
+
+    if not isinstance(ai_score_results, dict):
+        return _normalise(fallback)
+
+    score_values: List[float] = []
+    for key in REVIEW_SCORE_ITEMS:
+        item = ai_score_results.get(key)
+        candidate = item.get("value") if isinstance(item, dict) else item
+        try:
+            score_values.append(float(candidate))
+        except (TypeError, ValueError):
+            continue
+
+    if not score_values:
+        return _normalise(fallback)
+
+    average_score = sum(score_values) / len(score_values)
+    return _normalise(average_score)
 
 
 
 # ---------- Main review function to do all review
-async def get_writing_review(user_writing_input: WritingInput, review_score_items = REVIEW_SCORE_ITEMS, review_feedback_items = REVIEW_FEEDBACK_ITEMS) -> dict:
+async def get_writing_review(
+        user_writing_input: WritingInput, 
+        review_score_items = REVIEW_SCORE_ITEMS,
+        review_feedback_items = REVIEW_FEEDBACK_ITEMS) -> AIReview:
     # get_writing_review produce an AIReview
     # Currently only 4 scoring functions are implemented
     default_response_score = {
@@ -181,36 +225,38 @@ async def get_writing_review(user_writing_input: WritingInput, review_score_item
     }
 
     # Cocurrent call for individual score items
-    second_tasks = [
+    scoring_tasks = [
         get_one_writing_score_item(user_writing_input, review_score_item, default_response_score)
         for review_score_item in review_score_items
     ]
 
-    second_task_results = await asyncio.gather(*second_tasks)
+    scoring_task_results = await asyncio.gather(*scoring_tasks)
+    ai_evaluation = dict(zip(review_score_items, [result["value"] for result in scoring_task_results]))
 
-    ai_evaluation = dict(zip(review_score_items, second_task_results))
+#    ai_evaluation = dict(zip(review_score_items, scoring_task_results["value"]))
+    print("++++", scoring_task_results)
+    print("evaluation:", ai_evaluation)
 
 
-    # # Cocurrent call for overview score and feedback items
-    # # TODO
-    # default_response_feedback= {
-    #     "chain_of_thought": "Failed",
-    #     "feedback": ["feedback1"]
-    # }
+    feedback_tasks = [
+        get_one_writing_feedback(user_writing_input, review_item_feedback, scoring_task_results) for review_item_feedback in review_feedback_items
+    ]
 
-    # second_tasks = [
-    #     get_overall_score() #### Input need to be determined
-    # ] + [
-    #     get_one_writing_feedback(user_writing_input, review_feedback_item, default_response_feedback) #### Input may be updated
-    #     for review_feedback_item in review_feedback_items
-    # ]
+    feedback_task_results = await asyncio.gather(*feedback_tasks)
 
-    # second_task_results = await asyncio.gather(*second_tasks)
 
-    # ai_feedback = dict(zip(review_score_items, second_task_results))
 
-    # TODO: formatting the review results into an AIReview object
-    print("")
-    print("*** Scoring results:")
-    print(ai_evaluation)
-    return ai_evaluation
+    # formatting the review results into an AIReview object
+
+    evaluation_results = {
+        "overallScore": get_overall_score(ai_evaluation, fallback=list(ai_evaluation.values())[0]),
+        "scores": ai_evaluation,
+        "strengths": feedback_task_results[0]["feedback"],
+        "improvements": feedback_task_results[1]["feedback"],
+        "suggestions": feedback_task_results[2]["feedback"],
+    }
+
+    print(" +++++ final evaluation results:")
+    print(evaluation_results)
+
+    return evaluation_results

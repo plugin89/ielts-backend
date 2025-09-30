@@ -22,7 +22,48 @@ sample = {
 
 user_writing_input = WritingInput(**sample)
 
-asyncio.run(get_writing_review(user_writing_input))
+
+if __name__ == "__main__":
+    try:
+        asyncio.run(get_writing_review(user_writing_input))
+    except RuntimeError:  # if an event loop is already running
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(get_writing_review(user_writing_input))
+
+
+
+
+
+# result sample:
+# {
+#     "overallScore": 7.5,
+#     "scores": {
+#         "taskResponse": 8,
+#         "coherenceCohesion": 7.5,
+#         "lexicalResource": "8",
+#         "grammaticalAccuracy": 6.5,
+#     },
+#     "strengths": [
+#         "Clear and effective presentation of both the causes and solutions to the problem, demonstrating strong analytical skills and depth of understanding.",
+#         "Well-organized structure with strong paragraphing, maintaining focus and proper signposting through transitions.",
+#         "Vocabulary demonstrates high level of accuracy and appropriate selection, though minor issues contain occasional colloquial terms.",
+#     ],
+#     "improvements": [
+#         "Utilize more sophisticated vocabulary while maintaining the natural flow of the essay.",
+#         "Monitor sentence structures for errors and consider adding stronger transitional words and phrases to enhance coherence.",
+#         "Ensure all solutions are properly connected to the problems identified earlier in the essay for a complete cycle of argument and conclusion.",
+#     ],
+#     "suggestions": [
+#         "Consider adding more sophisticated language and paraphrasing phrases to increase lexical resource variety (e.g., 'vocational and skills training' instead of 'vocational training').",
+#         "Use linking words and phrases to improve coherence between sentences and paragraphs, such as 'Furthermore', 'Conversely' and 'Therefore'.",
+#         "Expand the discussion of the solutions by providing more examples of community service initiatives that could be implemented.",
+#         "Consider formalizing the language by replacing colloquial phrases ('locks them up' with 'incarcerates them') and avoiding contractions.",
+#     ],
+# }
+
+
+
+
 
 
 ## llm_response data

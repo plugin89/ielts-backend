@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 from src.routes import users
 from fastapi.middleware.cors import CORSMiddleware
+from schemas.write import WritingInput, AIReview
+from src.core.writing_review.writing_review import get_writing_review
 #from src.models.user import Base
 #from src.core.db import engine
 
@@ -35,3 +37,9 @@ def root():
 def health_check():
     return {"status": "ok"}
 
+@app.post("/review")
+def review_essay(user_writing_input: WritingInput) -> AIReview:
+    # Dummy implementation for essay review
+    # In a real scenario, this would involve complex logic or ML models
+    review_result = await get_writing_review(user_writing_input)  # Just a placeholder
+    return review_result

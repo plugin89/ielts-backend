@@ -17,8 +17,8 @@ load_dotenv()
 # ----- global constant
 DEFAULT_MAX_ATTEMPT = 5
 DEFAULT_TIMEOUT = 20 # 20 sec
-#DEFAULT_MODEL = "google/gemini-2.0-flash-lite-001"
-DEFAULT_MODEL = "cognitivecomputations/dolphin-mistral-24b-venice-edition:free" # free model for dev purpose
+DEFAULT_MODEL = "nousresearch/deephermes-3-llama-3-8b-preview:free"
+#DEFAULT_MODEL = "cognitivecomputations/dolphin-mistral-24b-venice-edition:free" # free model for dev purpose
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 
 
@@ -359,7 +359,6 @@ async def call_llm_without_cache(
 ) -> Dict:
     # TODO: max_token setting
 
-
     # Step 2. Make API call
     url = "https://openrouter.ai/api/v1/chat/completions"
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
@@ -380,7 +379,11 @@ async def call_llm_without_cache(
 
             response.raise_for_status()
             data = response.json()
-            response_json = extract_json(data["choices"][0]["message"]["content"])[0] # extract_json returns a list, but we only take the first one for now.
+            response_json = extract_json(data["choices"][0]["message"]["content"]) # extract_json returns a list, but we only take the first one for now.
+            if response_json:
+                response_json = response_json[0]
+            else:
+                response_json = default_response
             return response_json
 
 
