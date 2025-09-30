@@ -8,8 +8,8 @@ app = FastAPI()
 app.include_router(users.users)
 
 origins = [
-    "http://localhost:8080"
-    "https://essay-buddy-ielts.lovable.app"
+    "http://localhost:8080",
+    "https://ielts-frontend-tau.vercel.app/"
 ]
 
 app.add_middleware(
