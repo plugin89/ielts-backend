@@ -6,14 +6,15 @@ from typing import List, Literal
 
 # ----- input data class (from frontend)
 class WritingInput(BaseModel):
-    user_writing: str
+    content: str
     questionId: str
     topic: str
+    questionType: str
+    timeLimit: int = -1 
+    timeSpent: int
     wordCount: int
-    timespent: int
-    questionType: Literal["Task1", "Task2"] 
-    wordlimit: int = -1
-    timelimit: int = -1 
+    wordLimit: int = -1
+
 
 
 # ----- subclasses
