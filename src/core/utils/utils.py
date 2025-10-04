@@ -10,16 +10,18 @@ import time
 import random
 import asyncio
 import httpx
-from dotenv import load_dotenv
+import sys
 
-load_dotenv() 
+sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
+
+from core.config import settings
 
 # ----- global constant
-DEFAULT_MAX_ATTEMPT = 5
+OPENROUTER_API_KEY = settings.OPENROUTER_API_KEY
+DEFAULT_MAX_ATTEMPT =3
 DEFAULT_TIMEOUT = 20 # 20 sec
 DEFAULT_MODEL = "nousresearch/deephermes-3-llama-3-8b-preview:free"
 #DEFAULT_MODEL = "cognitivecomputations/dolphin-mistral-24b-venice-edition:free" # free model for dev purpose
-OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 
 
 # ----- helper functions
@@ -144,10 +146,6 @@ def check_type(value:Any, type_str: str) -> bool:
 
 
 
-
-#llm_response_text = llm_response["choices"][0]["message"]["content"]
-
-
 # ---- process/validate llm repsonses
 def extract_json(llm_response:str)->List|None:
     # Extract json objects in the llm_response
@@ -180,42 +178,47 @@ async def call_llm_without_cache(
     default_response: Dict,
     api_key: str = OPENROUTER_API_KEY,
     model: str = DEFAULT_MODEL,
-    timeout = 30
+    timeout = 30,
+    max_tokens: Optional[int] = None,
+    max_tries: int = DEFAULT_MAX_ATTEMPT
 ) -> Dict:
-    # TODO: max_token setting
-
-    # Step 2. Make API call
     url = "https://openrouter.ai/api/v1/chat/completions"
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
-    payload = {"model": model, "messages": [{"role": "user", "content": prompt}]}
+    payload: Dict[str, Any] = {"model": model, "messages": [{"role": "user", "content": prompt}]}
+    if max_tokens is not None:
+        payload["max_tokens"] = max_tokens
 
-
-    err = None
+    max_tries = max(max_tries, 1)
     async with httpx.AsyncClient(timeout=timeout) as client:
-        try:
-            response = await client.post(url, headers=headers, json=payload)
+        for attempt in range(1, max_tries + 1):
+            try:
+                response = await client.post(url, headers=headers, json=payload)
 
-            if response.status_code in (429,) or (500 <= response.status_code < 600):
-                # if i < max_attempt:
-                #     sleep_s = (2 ** (i - 1)) + random.uniform(0, 0.5)
-                #     await asyncio.sleep(sleep_s)
-                #     continue
+                if response.status_code in (429,) or (500 <= response.status_code < 600):
+                    if attempt < max_tries:
+                        sleep_s = (2 ** (attempt - 1)) + random.uniform(0, 0.5)
+                        await asyncio.sleep(sleep_s)
+                        continue
+                    response.raise_for_status()
+
                 response.raise_for_status()
+                data = response.json()
+                response_json_list = extract_json(data["choices"][0]["message"]["content"])  # extract_json returns a list, but we only take the first one for now.
+                if response_json_list[0]: # currently returning the first json object in the list 
+                    return response_json_list[0]
+            except (httpx.TimeoutException, httpx.RequestError):
+                # Network issues → immediate fallback
+                return default_response
+            except (httpx.HTTPStatusError, ValueError):
+                # Malformed response or server issues → retry
+                pass
 
-            response.raise_for_status()
-            data = response.json()
-            response_json = extract_json(data["choices"][0]["message"]["content"]) # extract_json returns a list, but we only take the first one for now.
-            if response_json:
-                response_json = response_json[0]
-            else:
-                response_json = default_response
-            return response_json
+            if attempt < max_tries:
+                # 재시도시 sleep 
+                sleep_s = (2 ** (attempt - 1)) + random.uniform(0, 0.5)
+                await asyncio.sleep(sleep_s)
+                continue
+            break
 
-
-        except (httpx.TimeoutException, httpx.RequestError) as e:
-            err = e
-        except httpx.HTTPStatusError as e:
-            err = e
-
-    # if failed
+    # if all failed
     return default_response
