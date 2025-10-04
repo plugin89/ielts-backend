@@ -8,5 +8,6 @@ class Settings:
     FIREBASE_PROJECT_ID: str = os.getenv("FIREBASE_PROJECT_ID")
     FIREBASE_PRIVATE_KEY: str = os.getenv("FIREBASE_PRIVATE_KEY", "").replace('\\n', '\n')
     FIREBASE_CLIENT_EMAIL: str = os.getenv("FIREBASE_CLIENT_EMAIL")
+    OPENROUTER_API_KEY: str = os.getenv("OPENROUTER_API_KEY")
 
 settings = Settings()
