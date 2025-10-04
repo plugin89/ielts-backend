@@ -8,7 +8,6 @@ import time
 import random
 import asyncio
 import httpx
-from dotenv import load_dotenv
 
 import asyncio
 from pydantic import BaseModel
@@ -20,8 +19,6 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 from core.utils.utils import call_llm, call_llm_without_cache, has_all_fields
 from schemas.write import WritingInput, AIReview
 
-
-load_dotenv() 
 
 # ----- Global variables
 # TODO: Will be updated to catch the list of class attributes (using util functions)
