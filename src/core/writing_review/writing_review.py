@@ -16,7 +16,7 @@ import os, sys
 import asyncio
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
-from core.utils.utils import call_llm_without_cache, has_all_fields
+from core.utils.utils import call_llm_without_cache, has_all_fields, DEFAULT_MAX_ATTEMPT
 from schemas.write import WritingInput, AIReview
 
 
@@ -70,11 +70,12 @@ async def get_one_writing_score_item(
         user_writing_input: WritingInput, 
         review_item_score: str, 
         default_response) -> dict:
-    # TODO: max_attempt - currently just one time attempt.
-    if review_item_score in REVIEW_SCORE_ITEMS:
-        # When the review item is a score item. 
+    if review_item_score not in REVIEW_SCORE_ITEMS:
+        return default_response
 
-        score_prompt = f"""
+    attempts = max(1, DEFAULT_MAX_ATTEMPT)
+
+    score_prompt = f"""
 You are an IELTS Writing Evaluation Expert. Your role is to evaluate essays strictly based on the **official IELTS Writing Band Descriptors** (Task Achievement/Response, Coherence & Cohesion, Lexical Resource, Grammatical Range & Accuracy).  
 
 # Instructions
@@ -110,13 +111,12 @@ You are an IELTS Writing Evaluation Expert. Your role is to evaluate essays stri
 Do not include anything else.
         """
 
+    for _ in range(attempts):
         llm_response = await call_llm_without_cache(score_prompt, default_response)
         if has_all_fields(llm_response, ["chain_of_thought", "value"]):
             return llm_response
-        else:
-            default_response        
-    else:
-        return default_response
+
+    return default_response
 
 
 
