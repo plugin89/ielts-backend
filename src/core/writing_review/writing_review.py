@@ -148,7 +148,7 @@ You are an IELTS Writing Evaluation Expert. Your role is to give users feedback 
 # User Essay
 - **Topic**: {user_writing_input.topic}
 - **Essay**:
-{user_writing_input.user_writing}
+{user_writing_input.content}
 
 # Score Results
 - **Score evaluation:
