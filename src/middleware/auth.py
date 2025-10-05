@@ -1,6 +1,6 @@
 from fastapi import HTTPException, status, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from src.core.firebase import verify_firebase_token
+from firebase_admin import auth
 
 security = HTTPBearer()
 
@@ -10,7 +10,7 @@ async def verify_token(credentials: HTTPAuthorizationCredentials = Depends(secur
     """
     try:
         token = credentials.credentials
-        decoded_token = verify_firebase_token(token)
+        decoded_token = auth.verify_id_token(token)
         return decoded_token
     except Exception as e:
         raise HTTPException(

@@ -2,10 +2,21 @@ from fastapi import FastAPI
 from src.routes import users, write
 from fastapi.middleware.cors import CORSMiddleware
 from src.core.writing_review.writing_review import get_writing_review
+from src.core.firebase import initialize_firebase
+from contextlib import asynccontextmanager
 #from src.models.user import Base
 #from src.core.db import engine
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    initialize_firebase()
+    # async with engine.begin() as conn:
+    #     await conn.run_sync(Base.metadata.create_all)
+    yield
+    # Shutdown (if needed)
+
+app = FastAPI(lifespan=lifespan)
 app.include_router(users.users)
 app.include_router(write.write)
 
@@ -21,12 +32,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# @app.on_event("startup")
-# async def startup():
-#     # Create tables
-#     async with engine.begin() as conn:
-#         await conn.run_sync(Base.metadata.create_all)
 
 @app.get("/")
 def root():

@@ -8,7 +8,7 @@ def initialize_firebase():
         cred_dict = {
             "type": "service_account",
             "project_id": settings.FIREBASE_PROJECT_ID,
-            "private_key": settings.FIREBASE_PRIVATE_KEY,
+            "private_key": settings.FIREBASE_PRIVATE_KEY.replace("\\n", "\n"),
             "client_email": settings.FIREBASE_CLIENT_EMAIL,
             "auth_uri": "https://accounts.google.com/o/oauth2/auth",
             "token_uri": "https://oauth2.googleapis.com/token",
@@ -16,11 +16,3 @@ def initialize_firebase():
 
         cred = credentials.Certificate(cred_dict)
         firebase_admin.initialize_app(cred)
-
-def verify_firebase_token(token: str):
-    try:
-        initialize_firebase()
-        decoded_token = auth.verify_id_token(token)
-        return decoded_token
-    except Exception as e:
-        raise Exception(f"Token verification failed: {str(e)}")
