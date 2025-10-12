@@ -10,4 +10,8 @@ class Settings:
     FIREBASE_CLIENT_EMAIL: str = os.getenv("FIREBASE_CLIENT_EMAIL")
     OPENROUTER_API_KEY: str = os.getenv("OPENROUTER_API_KEY")
 
+    # Supabase settings
+    SUPABASE_URL: str = os.getenv("SUPABASE_URL")
+    SUPABASE_KEY: str = os.getenv("SUPABASE_KEY")
+
 settings = Settings()
